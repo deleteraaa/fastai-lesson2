@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat Detector</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js"></script>
+    <style>
+        body { background: linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%); min-height: 100vh; }
+        .container { max-width: 420px; margin-top: 60px; background: #fff; border-radius: 18px; box-shadow: 0 4px 24px rgba(0,0,0,0.07); padding: 2.5rem 2rem 2rem 2rem; }
+        .title { font-size: 2.1rem; font-weight: 700; letter-spacing: 1px; color: #2d3748; margin-bottom: 0.5rem; }
+        .subtitle { color: #718096; font-size: 1.1rem; margin-bottom: 1.5rem; }
+        .img-preview { max-width: 100%; max-height: 260px; margin-bottom: 18px; border-radius: 10px; border: 1px solid #e2e8f0; }
+        .result-label { font-size: 1.15em; margin-top: 20px; }
+        .footer { margin-top: 40px; text-align: center; color: #a0aec0; font-size: 1em; }
+        .btn-primary { background: #4f46e5; border: none; }
+        .btn-primary:hover { background: #3730a3; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="text-center">
+        <div class="title">Cat Detector</div>
+        <div class="subtitle">Upload a photo to see if it's a cat or a dog!</div>
+    </div>
+    <form id="upload-form">
+        <div class="mb-3">
+            <input class="form-control" type="file" id="image-input" accept="image/*" required>
+        </div>
+        <div class="text-center">
+            <img id="img-preview" class="img-preview d-none" alt="Preview" />
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Detect</button>
+    </form>
+    <div id="result" class="result-label text-center mt-4"></div>
+</div>
+<div class="footer">
+    product of learnathon at NS
+</div>
+<script>
+    const GRADIO_SERVER_URL = "https://8b5d4adb497cc1986e.gradio.live";
+
+    const imageInput = document.getElementById('image-input');
+    const imgPreview = document.getElementById('img-preview');
+    const resultDiv = document.getElementById('result');
+    const form = document.getElementById('upload-form');
+
+    imageInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imgPreview.src = e.target.result;
+                imgPreview.classList.remove('d-none');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            imgPreview.classList.add('d-none');
+        }
+    });
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        resultDiv.textContent = 'Detecting...';
+        const file = imageInput.files[0];
+        if (!file) return;
+        try {
+            // Use gradio client to call the predict endpoint
+            const app = await window.gradio.client(GRADIO_SERVER_URL);
+            const result = await app.predict("/predict", [file]);
+            if (result && result.data) {
+                let html = '<h5>Prediction:</h5><ul class="list-group">';
+                for (const [label, prob] of Object.entries(result.data)) {
+                    html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                        ${label}
+                        <span class="badge bg-primary rounded-pill">${(prob*100).toFixed(2)}%</span>
+                    </li>`;
+                }
+                html += '</ul>';
+                resultDiv.innerHTML = html;
+            } else {
+                resultDiv.textContent = 'No prediction returned.';
+            }
+        } catch (err) {
+            resultDiv.textContent = 'Error: ' + err.message;
+        }
+    });
+</script>
+</body>
+</html>

@@ -3,89 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cat Detector</title>
+    <title>Cat verifier</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js"></script>
     <style>
-        body { background: linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%); min-height: 100vh; }
-        .container { max-width: 420px; margin-top: 60px; background: #fff; border-radius: 18px; box-shadow: 0 4px 24px rgba(0,0,0,0.07); padding: 2.5rem 2rem 2rem 2rem; }
-        .title { font-size: 2.1rem; font-weight: 700; letter-spacing: 1px; color: #2d3748; margin-bottom: 0.5rem; }
-        .subtitle { color: #718096; font-size: 1.1rem; margin-bottom: 1.5rem; }
-        .img-preview { max-width: 100%; max-height: 260px; margin-bottom: 18px; border-radius: 10px; border: 1px solid #e2e8f0; }
-        .result-label { font-size: 1.15em; margin-top: 20px; }
-        .footer { margin-top: 40px; text-align: center; color: #a0aec0; font-size: 1em; }
-        .btn-primary { background: #4f46e5; border: none; }
-        .btn-primary:hover { background: #3730a3; }
+        body {
+            background: linear-gradient(135deg, #fff 0%, #111 100%);
+            min-height: 100vh;
+            color: #111;
+        }
+        .container {
+            max-width: 430px;
+            margin-top: 60px;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.09);
+            padding: 2.5rem 2rem 2rem 2rem;
+        }
+        .title {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #111;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+        .subtitle {
+            color: #444;
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        .img-preview {
+            max-width: 100%;
+            max-height: 260px;
+            margin-bottom: 18px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            background: #f8f9fa;
+        }
+        .result-label {
+            font-size: 1.15em;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .badge-prediction {
+            font-size: 1.1em;
+            padding: 0.7em 1.2em;
+            border-radius: 1.5em;
+            background: #111;
+            color: #fff;
+            margin: 0.2em;
+            display: inline-block;
+        }
+        .badge-confidence {
+            font-size: 1em;
+            padding: 0.5em 1em;
+            border-radius: 1.2em;
+            background: #fff;
+            color: #111;
+            border: 1px solid #111;
+            margin-left: 0.5em;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #888;
+            font-size: 1em;
+        }
+        .btn-primary {
+            background: #111;
+            border: none;
+        }
+        .btn-primary:hover {
+            background: #333;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            color: #111;
+            margin-top: 1rem;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 1.2rem 0.5rem 1.5rem 0.5rem;
+            }
+            .title {
+                font-size: 1.5rem;
+            }
+        }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="text-center">
-        <div class="title">Cat Detector</div>
-        <div class="subtitle">Upload a photo to see if it's a cat or a dog!</div>
+    <div class="container">
+        <div class="title">Cat verifier</div>
+        <div class="subtitle">Upload a photo of an animal and let AI verify whether if it's cat!</div>
+        <form id="upload-form" aria-label="Upload animal photo for cat verification">
+            <input type="file" id="imageInput" accept="image/*" class="form-control mb-3" aria-label="Image file input" required>
+            <img id="imgPreview" class="img-preview" style="display:none;" alt="Image preview" />
+            <button id="predictBtn" class="btn btn-primary w-100" type="submit">Verify</button>
+        </form>
+        <div id="loading">
+            <div class="spinner-border text-dark" role="status" aria-label="Loading spinner">
+                <span class="visually-hidden">Predicting...</span>
+            </div>
+            <div>Predicting...</div>
+        </div>
+        <div id="result" class="result-label"></div>
+        <div class="footer">made at NS Learnathon</div>
     </div>
-    <form id="upload-form">
-        <div class="mb-3">
-            <input class="form-control" type="file" id="image-input" accept="image/*" required>
-        </div>
-        <div class="text-center">
-            <img id="img-preview" class="img-preview d-none" alt="Preview" />
-        </div>
-        <button type="submit" class="btn btn-primary w-100">Detect</button>
-    </form>
-    <div id="result" class="result-label text-center mt-4"></div>
-</div>
-<div class="footer">
-    product of learnathon at NS
-</div>
-<script>
-    const GRADIO_SERVER_URL = "https://8b5d4adb497cc1986e.gradio.live";
+    <script src="https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js"></script>
+    <script>
+        const GRADIO_URL = "https://2d54a90b075be09fb2.gradio.live/";
+        let selectedImage = null;
 
-    const imageInput = document.getElementById('image-input');
-    const imgPreview = document.getElementById('img-preview');
-    const resultDiv = document.getElementById('result');
-    const form = document.getElementById('upload-form');
+        const imageInput = document.getElementById('imageInput');
+        const imgPreview = document.getElementById('imgPreview');
+        const predictBtn = document.getElementById('predictBtn');
+        const resultDiv = document.getElementById('result');
+        const loadingDiv = document.getElementById('loading');
+        const form = document.getElementById('upload-form');
 
-    imageInput.addEventListener('change', function() {
-        const file = this.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                imgPreview.src = e.target.result;
-                imgPreview.classList.remove('d-none');
-            };
-            reader.readAsDataURL(file);
-        } else {
-            imgPreview.classList.add('d-none');
-        }
-    });
-
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        resultDiv.textContent = 'Detecting...';
-        const file = imageInput.files[0];
-        if (!file) return;
-        try {
-            // Use gradio client to call the predict endpoint
-            const app = await window.gradio.client(GRADIO_SERVER_URL);
-            const result = await app.predict("/predict", [file]);
-            if (result && result.data) {
-                let html = '<h5>Prediction:</h5><ul class="list-group">';
-                for (const [label, prob] of Object.entries(result.data)) {
-                    html += `<li class="list-group-item d-flex justify-content-between align-items-center">
-                        ${label}
-                        <span class="badge bg-primary rounded-pill">${(prob*100).toFixed(2)}%</span>
-                    </li>`;
-                }
-                html += '</ul>';
-                resultDiv.innerHTML = html;
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                selectedImage = file;
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    imgPreview.src = evt.target.result;
+                    imgPreview.style.display = "block";
+                };
+                reader.readAsDataURL(file);
+                resultDiv.textContent = "";
             } else {
-                resultDiv.textContent = 'No prediction returned.';
+                imgPreview.style.display = "none";
+                selectedImage = null;
             }
-        } catch (err) {
-            resultDiv.textContent = 'Error: ' + err.message;
-        }
-    });
-</script>
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!selectedImage) {
+                resultDiv.innerHTML = '<span style="color:#c00">Please select an image first.</span>';
+                return;
+            }
+            resultDiv.textContent = "";
+            loadingDiv.style.display = "block";
+            try {
+                const app = await window.gradio.client(GRADIO_URL);
+                const result = await app.predict("/predict", [selectedImage]);
+                if (result && result.data) {
+                    let html = '';
+                    for (const [label, prob] of Object.entries(result.data)) {
+                        html += `<span class='badge-prediction'>${label}</span><span class='badge-confidence'>${(prob*100).toFixed(2)}%</span><br/>`;
+                    }
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = '<span style="color:#c00">No prediction returned.</span>';
+                }
+            } catch (err) {
+                resultDiv.innerHTML = '<span style="color:#c00">Prediction failed. Please try again.</span>';
+            }
+            loadingDiv.style.display = "none";
+        });
+    </script>
 </body>
 </html>
